@@ -75,17 +75,25 @@ To exclude an app, freeze it from the module by adding its package to
 
 After the boot animation starts, the module:
 
-1. deletes system properties whose name contains `lineage` and rewrites values
+1. wraps `/system/bin/service` (the original is kept as `service_`), piping its
+   output through a length-preserving `lineage` → `lineagx` filter, so
+   `service list` no longer reveals ROM-named services;
+2. rewrites `userdebug` to `user` in the `build.prop` files of `/system`,
+   `/product/etc`, `/system_ext/etc` and `system_dlkm`, so the device no longer
+   advertises debug build information;
+3. deletes system properties whose name contains `lineage` and rewrites values
    that contain `lineage`;
-2. records the system package list used by the injection scope above;
-3. walks `/system`, `/vendor`, `/system_ext` and `/product` for `*lineage*` and
+4. records the system package list used by the injection scope above;
+5. walks `/system`, `/vendor`, `/system_ext` and `/product` for `*lineage*` and
    `*gapps*` entries and registers them with `ksu_susfs add_sus_path`
    (`add_sus_map` for regular files);
-4. registers additional paths and maps: `addon.d`, the LineageOS update
+6. registers additional paths and maps: `addon.d`, the LineageOS update
    directory, SELinux policy files, the platform resource RRO and its idmaps,
    the module's own native library and the Zygisk library.
 
-Every step is idempotent and safe to repeat on the next boot.
+Steps 1 and 2 remount the affected filesystems read-write and restore them to
+read-only afterwards; where the filesystem cannot be remounted, the step has no
+effect.  Every step is idempotent and safe to repeat on the next boot.
 
 ## Kernel-side path hiding
 

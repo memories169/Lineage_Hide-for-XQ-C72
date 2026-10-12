@@ -71,15 +71,20 @@ SystemUI、Settings、权限控制器、核心 providers、核心服务与 `org.
 
 开机动画启动后，模块会：
 
-1. 删除名称含 `lineage` 的系统属性，改写值中含 `lineage` 的属性；
-2. 生成系统包清单（供注入范围判断使用）；
-3. 遍历 `/system`、`/vendor`、`/system_ext`、`/product` 中带 `*lineage*` 和
+1. 包装 `/system/bin/service`（原文件备份为 `service_`），输出经等长
+   `lineage` → `lineagx` 改写，`service list` 不再暴露含 ROM 名称的服务；
+2. 把 `/system`、`/product/etc`、`/system_ext/etc`、`system_dlkm` 的
+   `build.prop` 中 `userdebug` 改写为 `user`，不再暴露调试构建信息；
+3. 删除名称含 `lineage` 的系统属性，改写值中含 `lineage` 的属性；
+4. 生成系统包清单（供注入范围判断使用）；
+5. 遍历 `/system`、`/vendor`、`/system_ext`、`/product` 中带 `*lineage*` 和
    `*gapps*` 的条目，交给 `ksu_susfs add_sus_path`（普通文件同时
    `add_sus_map`）；
-4. 追加注册：`addon.d`、LineageOS 更新目录、SELinux 策略文件、平台资源包的
+6. 追加注册：`addon.d`、LineageOS 更新目录、SELinux 策略文件、平台资源包的
    RRO 与 idmap、模块自身 native 库与 Zygisk 库。
 
-所有步骤都是幂等的，重启重复执行没有副作用。
+第 1、2 步会先把对应分区重挂为可写、完成后再挂回只读；无法重挂的环境下这两步
+不生效。所有步骤都是幂等的，重启重复执行没有副作用。
 
 ## 内核侧路径隐藏
 
@@ -157,7 +162,7 @@ bash scripts/package.sh
 ```
 module/                      Magisk/KernelSU 模块
   module.prop                模块标识（id=lineage_hide，version=1.2）
-  service.sh                 开机：属性清理 + 系统包清单 + ksu_susfs 注册
+  service.sh                 开机：服务列表/构建信息/属性清理 + 系统包清单 + ksu_susfs 注册
   customize.sh               安装脚本（权限）
   src/main/cpp/              Zygisk native 代码
     entry.cpp                注入判定（uid + 系统包清单）与 specialization 入口
