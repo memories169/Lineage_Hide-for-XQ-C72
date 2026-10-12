@@ -16,9 +16,9 @@ Lineage Hide 是一个 Zygisk 模块，用于隐藏 LineageOS / 自定义 ROM �
 <p align="center">
   <img src="images/native-detector.png" width="280" alt="Native Detector：环境正常，未检测到修改">
   <img src="images/duck-detector.png" width="280" alt="Duck Detector：无高危项">
-  <img src="images/play-integrity.png" width="280" alt="Play Integrity：BASIC、DEVICE、STRONG 全部通过">
 </p>
 <p align="center">
+  <img src="images/play-integrity.png" width="280" alt="Play Integrity：BASIC、DEVICE、STRONG 全部通过">
   <img src="images/system-update.png" width="280" alt="设置-系统更新：系统应用内 LineageOS 仍正常可见">
 </p>
 
