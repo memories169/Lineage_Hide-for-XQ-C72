@@ -20,7 +20,6 @@ Demo video of the hiding effect of this project: <https://b23.tv/437BHCi>
 </p>
 <p align="center">
   <img src="images/system-update.png" width="280" alt="Settings / system update — LineageOS stays visible in system apps">
-  <img src="images/native-check.png" width="280" alt="Native check — system compromised, 5 anomalies">
 </p>
 
 ## Pairing with SUSFS (important)

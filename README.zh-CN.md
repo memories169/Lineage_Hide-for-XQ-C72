@@ -20,7 +20,6 @@ Lineage Hide 是一个 Zygisk 模块，用于隐藏 LineageOS / 自定义 ROM �
 </p>
 <p align="center">
   <img src="images/system-update.png" width="280" alt="设置-系统更新：系统应用内 LineageOS 仍正常可见">
-  <img src="images/native-check.png" width="280" alt="春秋 Native check：检测到 5 项异常">
 </p>
 
 ## 与 SUSFS 搭配（重要）
