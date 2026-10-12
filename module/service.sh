@@ -15,6 +15,28 @@ while [ ! -d "/sdcard/Android" ] && [ "$i" -lt 180 ]; do
     i=$((i + 1))
 done
 
+# Hide service list
+if [ ! -f "/system/bin/service_" ]; then
+    mount -o remount,rw "/"
+    cp -a "/system/bin/service" "/system/bin/service_"
+    cat > "/system/bin/service" << 'EOF'
+#!/system/bin/sh
+exec "/system/bin/service_" "$@" | exec sed 's/lineage/lineagx/g; s/Lineage/Lineagx/g'
+EOF
+    mount -o remount,ro "/"
+fi
+
+# Remove debug build information
+echo "/system/build.prop
+/product/etc/build.prop
+/system_ext/etc/build.prop
+/system/system_dlkm/etc/build.prop" | while IFS= read -r line; do
+    mp=$(df "$line" | awk 'NR==2 {print $6}')
+    mount -o remount,rw "$mp"
+    sed -i 's/userdebug/user/g' "$line"
+    mount -o remount,ro "$mp"
+done
+
 # Remove or rewrite system properties that carry the ROM name.
 if command -v resetprop >/dev/null 2>&1; then
     resetprop | awk -F '\\[|\\]: \\[|\\]' '/lineage/ {

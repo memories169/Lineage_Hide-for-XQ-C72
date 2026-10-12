@@ -1,5 +1,10 @@
 # 更新日志
 
+## 1.4
+
+- `service.sh` 隐藏 service 列表痕迹：包装 `/system/bin/service`，输出中的 lineage 关键词被等长改写
+- `service.sh` 清理各分区 `build.prop` 中的 `userdebug` 构建信息
+
 ## 1.3
 
 - 作者署名更新为 GitHub@null07089
