@@ -13,6 +13,16 @@ Lineage Hide 是一个 Zygisk 模块，用于隐藏 LineageOS / 自定义 ROM �
 
 本项目隐藏效果演示视频：<https://b23.tv/437BHCi>
 
+<p align="center">
+  <img src="images/native-detector.png" width="280" alt="Native Detector：环境正常，未检测到修改">
+  <img src="images/duck-detector.png" width="280" alt="Duck Detector：无高危项">
+  <img src="images/play-integrity.png" width="280" alt="Play Integrity：BASIC、DEVICE、STRONG 全部通过">
+</p>
+<p align="center">
+  <img src="images/system-update.png" width="280" alt="设置-系统更新：系统应用内 LineageOS 仍正常可见">
+  <img src="images/native-check.png" width="280" alt="春秋 Native check：检测到 5 项异常">
+</p>
+
 ## 与 SUSFS 搭配（重要）
 
 模块只能改变“目标进程内能看到什么”。内核对外报告的内容——路径可见性、已经打开
@@ -164,4 +174,5 @@ scripts/
   package.sh                 打包 Lineage_Hide.zip
   patch-kernel.sh            内核 procfs 路径清洗补丁
   verify_stealth.sh          adb 辅助验证
+images/                      README 演示截图
 ```
