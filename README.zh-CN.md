@@ -104,6 +104,36 @@ scripts/patch-kernel.sh --revert /path/to/kernel # 撤销
 为 `*.lineage_hide.bak`。应用后需重新编译并刷入内核；补丁只改显示字符串，不影响
 文件访问与资源加载。
 
+## KernelSU SELinux 状态加固
+
+`scripts/selinux_hide_patch.sh` 加固 KernelSU 的 `selinux_hide` 特性：该特性
+代替当前（被 KernelSU 修改过的）策略，用开机时留存的策略副本来回答应用的
+selinuxfs 查询。在特性开启的前提下，脚本在 `kernel/feature/selinux_hide.c`
+中加三处守卫，使这些回退路径对应用进程（uid ≥ 10000）直接返回 `-EINVAL`，
+不再验证以下特权上下文：
+
+- `my_write_context()`（`/sys/fs/selinux/context`）拒绝 `u:r:adbroot:s0`；
+- `my_write_access()`（`/sys/fs/selinux/access`）拒绝 `u:r:shell:s0` +
+  `u:r:su:s0`、`u:r:fsck_untrusted:s0`、`u:r:adbroot:s0`；
+- `ksu_handle_selinux_setprocattr()` 拒绝 `u:r:adbroot:s0`。
+
+环境检测应用常借这三类探针确认净化后的策略背后是否藏着 `su`、`adbroot` 等
+特权域；拒绝后无论内核实际运行哪份策略，探针都无法得到肯定结果。root/shell
+进程（uid < 10000）不受影响。
+
+与 `patch-kernel.sh` 相同，脚本按函数语义定位（不依赖行号）且幂等：
+
+```bash
+scripts/selinux_hide_patch.sh /path/to/kernel          # 应用
+scripts/selinux_hide_patch.sh --check /path/to/kernel  # 仅报告状态
+scripts/selinux_hide_patch.sh --revert /path/to/kernel # 撤销
+```
+
+`<tree>` 为内核源码根目录（KernelSU 克隆在 `KernelSU/` 并软链为
+`drivers/kernelsu`）或 KernelSU 仓库根目录。修改后的
+`kernel/feature/selinux_hide.c` 备份为 `*.selinux_hide.bak`；应用后需重新编译
+并刷入内核。
+
 ## 构建与发布
 
 安装 Gradle 8.11.1、JDK 17 与 Android SDK/NDK；仓库内的 `gradlew` 使用 `PATH`
@@ -139,7 +169,11 @@ bash scripts/package.sh
 7. **SUSFS 注册**：`ksu_susfs` 的注册结果可在管理器/SUSFS 状态中查看；
    应用 `/proc/self/maps` 不应出现模块 `.so` 与 lineage 路径；
 8. **内核补丁**：应用 `/proc/self/fd/*` 的 readlink 目标含关键词时显示为
-   等长改写（如 `lineagx`）；root 进程不受影响。
+   等长改写（如 `lineagx`）；root 进程不受影响；
+9. **KSU 特权探针**：开启 `selinux_hide` 后，应用内经
+   `/sys/fs/selinux/context`、`/sys/fs/selinux/access` 或 setprocattr 探测
+   `u:r:adbroot:s0`、`u:r:shell:s0`→`u:r:su:s0` 均返回 `EINVAL`；
+   root/shell 进程不受影响。
 
 ## 设计约束与经验
 
@@ -177,6 +211,7 @@ module/                      Magisk/KernelSU 模块
 scripts/
   package.sh                 打包 Lineage_Hide.zip
   patch-kernel.sh            内核 procfs 路径清洗补丁
+  selinux_hide_patch.sh      KernelSU selinux_hide 特权上下文探针防护
   verify_stealth.sh          adb 辅助验证
 images/                      README 演示截图
 ```

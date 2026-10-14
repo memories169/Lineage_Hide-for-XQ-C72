@@ -115,6 +115,39 @@ It writes `include/linux/lineage_hide.h`, edits `do_proc_readlink()` in
 files as `*.lineage_hide.bak`.  Rebuild and flash the kernel afterwards; only
 the displayed string changes, file access and resource loading are untouched.
 
+## KernelSU selinux_hide hardening
+
+`scripts/selinux_hide_patch.sh` hardens KernelSU's `selinux_hide` feature, the
+code that answers application selinuxfs queries from the policy copy captured
+at boot instead of the running (KernelSU-modified) policy.  With the feature
+enabled, the patcher adds three guards to `kernel/feature/selinux_hide.c` so
+the fallbacks return `-EINVAL` for privileged contexts when the caller is an
+application (uid >= 10000), instead of validating them:
+
+- `my_write_context()` (`/sys/fs/selinux/context`) rejects `u:r:adbroot:s0`;
+- `my_write_access()` (`/sys/fs/selinux/access`) rejects `u:r:shell:s0` +
+  `u:r:su:s0`, `u:r:fsck_untrusted:s0` and `u:r:adbroot:s0`;
+- `ksu_handle_selinux_setprocattr()` rejects `u:r:adbroot:s0`.
+
+These probes are used by environment detectors to confirm privileged domains
+(`su`, `adbroot`) behind the sanitized policy; refusing them keeps the answer
+negative no matter which policy the kernel really runs.  Root and shell
+processes are not affected.
+
+Like `patch-kernel.sh` the patcher is semantic (function anchors, not line
+numbers) and idempotent:
+
+```bash
+scripts/selinux_hide_patch.sh /path/to/kernel          # apply
+scripts/selinux_hide_patch.sh --check /path/to/kernel  # status only
+scripts/selinux_hide_patch.sh --revert /path/to/kernel # remove
+```
+
+`<tree>` is the kernel source root (KernelSU cloned at `KernelSU/` and
+symlinked as `drivers/kernelsu`) or the KernelSU repo root itself.  The edited
+`kernel/feature/selinux_hide.c` is backed up as `*.selinux_hide.bak`; rebuild
+and flash the kernel afterwards.
+
 ## Build
 
 Install Gradle 8.11.1, JDK 17 and the Android SDK/NDK.  The repository's
