@@ -1,5 +1,13 @@
 # 更新日志
 
+## 1.5
+
+- `service.sh` 服务列表隐藏改为双方案：OnePlus 8T（`ro.product.model=KB2000`）写入定制静态 `service list` 输出；其余机型把 wrapper 从 `/data/system` bind mount 到 `/system/bin/service`，不再要求系统分区可写
+- 新增 bootloader / verified boot 属性伪装：`ro.boot.flash.locked`、`ro.boot.verifiedbootstate`、`ro.boot.vbmeta.*`、`ro.debuggable`、`ro.secure`、`ro.build.type`、`ro.build.tags` 等
+- `service.sh` 开启 SUSFS 的 `hide_sus_mnts_for_non_su_procs` 与 `enable_avc_log_spoofing`，并把 `/data/resource-cache` 纳入 lineage/gapps 路径扫描
+- 禁用 `org.lineageos.jelly`
+- 修复去除 debug 构建信息失败
+
 ## 1.4
 
 - `service.sh` 隐藏 service 列表痕迹：包装 `/system/bin/service`，输出中的 lineage 关键词被等长改写
