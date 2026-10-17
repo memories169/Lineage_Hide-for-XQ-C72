@@ -28,6 +28,7 @@ Lineage Hide 是一个 Zygisk 模块，用于隐藏 LineageOS / 自定义 ROM �
 的 fd、系统属性——依赖 KernelSU 内核上的 SUSFS，本项目内置配套胶水：
 
 - `service.sh` 每次开机调用系统提供的 `ksu_susfs`：
+  - 开启 `hide_sus_mnts_for_non_su_procs` 与 `enable_avc_log_spoofing`；
   - 把带 ROM 关键词的文件注册为 `add_sus_path`，使目录列表与路径查询对应用不可见；
   - 把文件映射与 idmap 注册为 `add_sus_map`，使其从应用 `/proc/self/maps` 中消失；
   - 用 `resetprop` 删除或清洗含 `lineage` 的系统属性；
@@ -71,20 +72,38 @@ SystemUI、Settings、权限控制器、核心 providers、核心服务与 `org.
 
 开机动画启动后，模块会：
 
-1. 包装 `/system/bin/service`（原文件备份为 `service_`），输出经等长
-   `lineage` → `lineagx` 改写，`service list` 不再暴露含 ROM 名称的服务；
-2. 把 `/system`、`/product/etc`、`/system_ext/etc`、`system_dlkm` 的
-   `build.prop` 中 `userdebug` 改写为 `user`，不再暴露调试构建信息；
-3. 删除名称含 `lineage` 的系统属性，改写值中含 `lineage` 的属性；
-4. 生成系统包清单（供注入范围判断使用）；
-5. 遍历 `/system`、`/vendor`、`/system_ext`、`/product` 中带 `*lineage*` 和
-   `*gapps*` 的条目，交给 `ksu_susfs add_sus_path`（普通文件同时
-   `add_sus_map`）；
-6. 追加注册：`addon.d`、LineageOS 更新目录、SELinux 策略文件、平台资源包的
+1. 隐藏 service 列表：
+   - OnePlus 8T（`ro.product.model=KB2000`）把 `/` 重挂为可写，备份
+     `/system/bin/service` 为 `service_`，写入一个对 `service list` 返回
+     392 项定制静态列表的 wrapper；
+   - 其余机型（或 8T 写入失败时）不改系统分区：把原文件备份到
+     `/data/system/service_`，wrapper 写到 `/data/system/service`，再用
+     `nsenter -m -t 1` 在 init mount namespace 里 bind mount 到
+     `/system/bin/service`；
+   - 8T wrapper 对非 `list` 调用、通用 wrapper 对所有输出做等长
+     `lineage` → `lineagx` 改写；
+2. 把 `/system`、`/product/etc`、`/system_ext/etc`、
+   `/system/system_dlkm/etc` 的 `build.prop` 中 `userdebug` 改写为 `user`，
+   不再暴露调试构建信息；
+3. 伪装 bootloader / verified boot 状态：`ro.boot.flash.locked=1`、
+   `ro.boot.verifiedbootstate=green`、`ro.boot.vbmeta.device_state=locked`、
+   `ro.boot.vbmeta.*`，以及 `ro.debuggable=0`、`ro.force.debuggable=0`、
+   `ro.secure=1`、`ro.adb.secure=1`、`ro.build.type=user`、
+   `ro.build.tags=release-keys`、recovery 状态的 `ro.bootmode` 与
+   `init.svc.adb_root`；
+4. 删除名称含 `lineage` 的系统属性，改写值中含 `lineage` 的属性；
+5. 禁用 `org.lineageos.jelly`，生成系统包清单（供注入范围判断使用）；
+6. 开启 SUSFS 的 `hide_sus_mnts_for_non_su_procs` 与
+   `enable_avc_log_spoofing`，然后遍历 `/data/resource-cache`、`/system`、
+   `/vendor`、`/system_ext`、`/product` 中带 `*lineage*` 和 `*gapps*`
+   的条目，交给 `ksu_susfs add_sus_path`（普通文件同时 `add_sus_map`）；
+7. 追加注册：`addon.d`、LineageOS 更新目录、SELinux 策略文件、平台资源包的
    RRO 与 idmap、模块自身 native 库与 Zygisk 库。
 
-第 1、2 步会先把对应分区重挂为可写、完成后再挂回只读；无法重挂的环境下这两步
-不生效。所有步骤都是幂等的，重启重复执行没有副作用。
+service 列表步骤只有 OnePlus 8T 会重挂并写入系统分区；通用 bind mount 分支
+不修改系统分区。第 2 步会重挂对应分区并在完成后挂回只读，无法重挂时文件改写
+不生效，但第 3 步的属性伪装仍能覆盖应用运行时读到的值。所有步骤都是幂等的，
+重启重复执行没有副作用。与进程内钩子不同，属性改写和 SUSFS 注册是全局生效的。
 
 ## 内核侧路径隐藏
 
@@ -170,10 +189,15 @@ bash scripts/package.sh
    应用 `/proc/self/maps` 不应出现模块 `.so` 与 lineage 路径；
 8. **内核补丁**：应用 `/proc/self/fd/*` 的 readlink 目标含关键词时显示为
    等长改写（如 `lineagx`）；root 进程不受影响；
-9. **KSU 特权探针**：开启 `selinux_hide` 后，应用内经
-   `/sys/fs/selinux/context`、`/sys/fs/selinux/access` 或 setprocattr 探测
-   `u:r:adbroot:s0`、`u:r:shell:s0`→`u:r:su:s0` 均返回 `EINVAL`；
-   root/shell 进程不受影响。
+9. **服务列表**：OnePlus 8T 上 `service list` 返回 392 项静态列表；其他机型
+   不应出现含 `lineage` 的服务名；
+10. **Bootloader 属性**：`getprop ro.boot.flash.locked` 为 `1`，
+    `ro.boot.verifiedbootstate` 为 `green`，`ro.boot.vbmeta.device_state`
+    为 `locked`，`ro.build.type` 为 `user`，`ro.debuggable` 为 `0`；
+11. **KSU 特权探针**：开启 `selinux_hide` 后，应用内经
+    `/sys/fs/selinux/context`、`/sys/fs/selinux/access` 或 setprocattr 探测
+    `u:r:adbroot:s0`、`u:r:shell:s0`→`u:r:su:s0` 均返回 `EINVAL`；
+    root/shell 进程不受影响。
 
 ## 设计约束与经验
 
@@ -189,14 +213,16 @@ bash scripts/package.sh
   native Binder 调用、`PendingIntent` 代发广播不在覆盖内，需要 SUSFS 与内核补丁
   补齐；
 - **隐藏本身要尽量小。** 每多一个钩子就多一份可观测面；已移除对 native 无效的
-  list0/readlink 钩子，只保留确有作用的通道。
+  list0/readlink 钩子，只保留确有作用的通道；
+- **OnePlus 8T 服务列表是静态快照。** ROM 更新改变服务集合后，需要重新生成
+  wrapper 才能同步。
 
 ## 目录结构
 
 ```
 module/                      Magisk/KernelSU 模块
-  module.prop                模块标识（id=lineage_hide，version=1.2）
-  service.sh                 开机：服务列表/构建信息/属性清理 + 系统包清单 + ksu_susfs 注册
+  module.prop                模块标识（id=lineage_hide，version=1.5）
+  service.sh                 开机：服务列表/bootloader 属性伪装 + 系统包清单 + ksu_susfs 注册
   customize.sh               安装脚本（权限）
   src/main/cpp/              Zygisk native 代码
     entry.cpp                注入判定（uid + 系统包清单）与 specialization 入口
