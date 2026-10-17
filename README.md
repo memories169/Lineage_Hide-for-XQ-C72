@@ -5,6 +5,11 @@ fingerprints from applications.  Every third-party app is covered
 
 ## Compatibility
 
+- Theoretically supports LineageOS 23.2 and newer;
+- Tested on OnePlus 8T with LineageOS 24 (Android 17);
+- If the `/system/bin/service` mount point is still exposed after installing
+  the module, install the MetaModule:
+  <https://kernelsu.org/guide/metamodule.html>;
 - **If some applications fail to open**, switch to this Zygisk Next build:
   <https://t.me/c/2022002916/124739> — the newer Zygisk injection
   implementation has a spin issue when injecting 360-hardened apps.

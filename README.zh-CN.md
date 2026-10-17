@@ -5,6 +5,10 @@ Lineage Hide 是一个 Zygisk 模块，用于隐藏 LineageOS / 自定义 ROM �
 
 ## 兼容性
 
+- 理论支持 LineageOS 23.2 及以上版本；
+- 测试通过：OnePlus 8T，LineageOS 24（Android 17）；
+- 安装模块后如果暴露 `/system/bin/service` 挂载点，需要安装元模块（MetaModule）：
+  <https://kernelsu.org/guide/metamodule.html>；
 - **部分软件无法打开**：请改用这个 Zygisk Next 版本
   <https://t.me/c/2022002916/124739>
   （新版 Zygisk 注入实现在 360 加壳应用上存在自旋问题）
