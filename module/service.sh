@@ -2,11 +2,13 @@
 
 resetprop -w init.svc.bootanim running
 
+[ $(realpath "/proc/$$/exe") != "/system/bin/sh" ] && exec "/system/bin/sh" "$0"
+
 [ "$(getprop ro.product.model)" = "KB2000" ] && (
-[ -f /system/bin/service_ ] && exit
-mount -o remount,rw /
-cp -a /system/bin/service /system/bin/service_
-cat > /system/bin/service << 'EOF_'
+    [ -f "/system/bin/service_" ] && exit
+    mount -o remount,rw /
+    cp -a "/system/bin/service" "/system/bin/service_"
+    cat > "/system/bin/service" << 'EOF_'
 #!/system/bin/sh
 case "$@" in
     "list")
@@ -407,19 +409,33 @@ Found 392 services:
 EOF
     ;;
     *)
-        exec /system/bin/service_ "$@" | sed 's/lineage/lineagx/g; s/Lineage/Lineagx/g'
+        exec "/system/bin/service_" "$@" | sed 's/lineage/lineagx/g; s/Lineage/Lineagx/g'
     ;;
 esac
 EOF_
-mount -o remount,ro /
+    mount -o remount,ro "/"
 ) || {
-cat "/system/bin/service" > "/data/system/service_"
-echo $'#!/system/bin/sh\nexec "/data/system/service_" "$@" | sed \'s/lineage/lineagx/g; s/Lineage/Lineagx/g\'' > "/data/system/service"
-chmod "$(stat -c "%a" "/system/bin/service")" "/data/system/service" "/data/system/service_"
-chown "$(stat -c "%u:%g" "/system/bin/service")" "/data/system/service" "/data/system/service_"
-chcon "$(stat -c "%C" "/system/bin/service")" "/data/system/service" "/data/system/service_"
-nsenter -m -t 1 -- mount --bind "/data/system/service" "/system/bin/service"
+    cat "/system/bin/service" > "/data/system/service_"
+    echo $'#!/system/bin/sh\nexec "/data/system/service_" "$@" | sed \'s/lineage/lineagx/g; s/Lineage/Lineagx/g\'' > "/data/system/service"
+    chmod "$(stat -c "%a" "/system/bin/service")" "/data/system/service" "/data/system/service_"
+    chown "$(stat -c "%u:%g" "/system/bin/service")" "/data/system/service" "/data/system/service_"
+    chcon "$(stat -c "%C" "/system/bin/service")" "/data/system/service" "/data/system/service_"
+    nsenter -m -t 1 -- mount --bind "/data/system/service" "/system/bin/service"
 }
+
+for i in "/system/build.prop" "/product/etc/build.prop" "/system_ext/etc/build.prop" "/system/system_dlkm/etc/build.prop"
+do
+    mp=$(df "$i" | awk 'NR==2 {print $6}')
+    mount -o remount,rw "$mp"
+    sed -i 's/userdebug/user/g' "$i"
+    mount -o remount,ro "$mp"
+done
+
+resetprop -w sys.boot_completed 0
+
+pm disable org.lineageos.jelly
+
+pm list packages -s | sed 's/^package://' | sort -u > "${0%/*}/system_packages.txt"
 
 until dumpsys window policy | awk '/showing=false/ { a=1 }; /inputRestricted=false/ { b=1 }; END { exit !(a && b) }'
 do
@@ -430,8 +446,6 @@ until [ -d "/sdcard/Android" ]
 do
     sleep 1
 done
-
-/system/bin/sh -c $'echo "/system/build.prop\n/product/etc/build.prop\n/system_ext/etc/build.prop\n/system/system_dlkm/etc/build.prop" | while IFS= read -r line\ndo\n    mp=$(df "$line" | awk \'NR==2 {print $6}\')\n    mount -o remount,rw "$mp"\n    sed -i \'s/userdebug/user/g\' "$line"\n    mount -o remount,ro "$mp"\ndone'
 
 resetprop -n "ro.boot.flash.locked" "1"
 check_reset_prop() {
@@ -456,7 +470,7 @@ check_reset_prop "ro.build.tags" "release-keys"
 contains_reset_prop "ro.bootmode" "recovery" "unknown"
 
 resetprop -n ro.boot.vbmeta.device_state "locked"
-resetprop -n ro.boot.vbmeta.avb_version 1.3
+resetprop -n ro.boot.vbmeta.avb_version "1.4"
 resetprop -n ro.boot.vbmeta.hash_alg "sha256"
 resetprop -n ro.boot.vbmeta.size "4096"
 
@@ -466,16 +480,12 @@ resetprop | awk -F '\\[|\\]: \\[|\\]' '/lineage/ {
     key=$2
     value=$3
     if (key ~ /lineage/) {
-        system("resetprop --delete \"" key "\"")
+        system("exec resetprop --delete \"" key "\"")
     } else if (value ~ /lineage/) {
         gsub("lineage_?", "", value)
-        system("resetprop \"" key "\" \"" value "\"")
+        system("exec resetprop \"" key "\" \"" value "\"")
     }
 }'
-
-pm disable org.lineageos.jelly
-
-pm list packages -s | sed 's/^package://' | sort -u > "${0%/*}/system_packages.txt"
 
 ksu_susfs hide_sus_mnts_for_non_su_procs 1
 ksu_susfs enable_avc_log_spoofing 1
