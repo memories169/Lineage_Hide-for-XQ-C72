@@ -225,7 +225,7 @@ bash scripts/package.sh
 
 ```
 module/                      Magisk/KernelSU 模块
-  module.prop                模块标识（id=lineage_hide，version=1.5）
+  module.prop                模块标识（id=lineage_hide，version=1.5.1）
   service.sh                 开机：服务列表/bootloader 属性伪装 + 系统包清单 + ksu_susfs 注册
   customize.sh               安装脚本（权限）
   src/main/cpp/              Zygisk native 代码

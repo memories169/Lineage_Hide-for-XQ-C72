@@ -1,5 +1,12 @@
 # 更新日志
 
+## 1.5.1
+
+- `service.sh` 统一改用 `/system/bin/sh` 执行，避免部分环境下解释器不一致
+- 调整 `service.sh` 执行顺序与语法风格；`pm` 命令前等待 `sys.boot_completed`
+- 修复 OnePlus 8T 已有 `service_` 时误走通用挂载分支的问题
+- `ro.boot.vbmeta.avb_version` 更新为 `1.4`，适配 Android 17
+
 ## 1.5
 
 - `service.sh` 服务列表隐藏改为双方案：OnePlus 8T（`ro.product.model=KB2000`）写入定制静态 `service list` 输出；其余机型把 wrapper 从 `/data/system` bind mount 到 `/system/bin/service`，不再要求系统分区可写
